@@ -11,11 +11,19 @@ app.use(bodyParser.json());
 app.use(cors());
 
 const db = mysql.createConnection({
-    host: "localhost",
-    user: "root",
-    password: "sasha221291",
-    database:"users-posts",
-})
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME
+});
+
+db.connect((err) => {
+    if (err) {
+      console.error('Error connecting to MySQL: ' + err.stack);
+      return;
+    }
+    console.log('Connected to MySQL');
+});
 
 db.on('error', function(err) {
     console.log("[mysql error]",err);
@@ -28,45 +36,54 @@ app.post('/signup', (req,res) => {
     const FirstName =req.body.FirstName;
     const Email =req.body.Email;
     const Password =req.body.Password;
-     bcrypt.hash(Password, saltRounds, (err, hashedPassword) =>{
-        if (err){
-            res.send('Couldn`t hash password')
-        }else{
-            db.query('INSERT INTO users(LastName, FirstName, Email, Password) VALUES (?, ?, ?, ?)', [LastName, FirstName, Email, hashedPassword], (err, result) => {
-                if(err){
-                    res.send("Couldn't register user")
-                }else{
-                    res.send({user: FirstName + " " + LastName})
-                    db.query('SELECT idUser FROM users WHERE Email = ?', [Email], (err, result) =>{
-                        res.send({userId: result[0].idUser})
+    try{
+        db.query('SELECT * FROM users WHERE Email = ?', [Email], (err, result) => {
+            if(result){
+                res.send(err)
+            }
+            else{
+                bcrypt.hash(Password, saltRounds, (err, hashedPassword) =>{
+                    db.query('INSERT INTO users(LastName, FirstName, Email, Password) VALUES (?, ?, ?, ?)', [LastName, FirstName, Email, hashedPassword], (err, result) => {
+                        if(err){
+                            res.send(err)
+                        }else{
+                            db.query('SELECT idUser FROM users WHERE Email = ?', [Email], (err, result) =>{
+                            res.send({userId: result[0].idUser, user: FirstName + " " + LastName})
+                            })
+                        }
                     })
-                }
-            })
-        }
-     })
+                })
+            }
+        })
+    }
+    catch(e){
+        res.send("Couldn't register user")
+    }
 })
 
 app.post('/signin', (req,res) => {
     const Email =req.body.Email;
     const Password =req.body.Password;
-    db.query('SELECT * FROM users WHERE Email = ?', [Email], async(err, result) => {
-            if(err){
-                res.send(err.message)
+    try{
+        db.query('SELECT * FROM users WHERE Email = ?', [Email], (err, result) => {
+            if(!result){
+                throw e;
             }
-            else if (result.lengh < 1){
-               res.send('Invalid login')
-           }
-        else{
-            bcrypt.compare(Password, result[0].Password, (err, match) =>{
-                if (match){
-                    res.send({user: result[0].FirstName + " " + result[0].LastName, userId: result[0].idUser})
-                }
-                if (!match){
-                    res.sand('Invalid password')
-                }
-            })
-        }
-    })
+            else{
+                bcrypt.compare(Password, result[0].Password, (err, match) =>{
+                    if (match){
+                        res.send({user: result[0].FirstName + " " + result[0].LastName, userId: result[0].idUser})
+                    }
+                    if (!match){
+                        res.send('Invalid password')
+                    }
+                })
+            }
+        })
+    }
+    catch(e){
+        alert("sorry");
+    }
 })
 
 app.get('/getusers', (req,res)=>{
@@ -77,7 +94,7 @@ app.get('/getusers', (req,res)=>{
         res.send(result)
     })  
 })
-  
+
 app.post('/createpost', (req,res)=> {
     const currentDate = new Date();
     const formattedDate = format(currentDate, 'dd-MM HH:mm');
