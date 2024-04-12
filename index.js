@@ -48,7 +48,7 @@ app.post('/signup', (req,res) => {
                             res.send(err)
                         }else{
                             db.query('SELECT idUser FROM users WHERE Email = ?', [Email], (err, result) =>{
-                            res.send({userId: result[0].idUser, user: FirstName + " " + LastName})
+                            res.send({userId: result[0].idUser, user:`${FirstName} ${LastName}`})
                             })
                         }
                     })
@@ -72,7 +72,7 @@ app.post('/signin', (req,res) => {
             else{
                 bcrypt.compare(Password, result[0].Password, (err, match) =>{
                     if (match){
-                        res.send({user: result[0].FirstName + " " + result[0].LastName, userId: result[0].idUser})
+                        res.send({user:`${result[0].FirstName} ${result[0].LastName}`, userId: result[0].idUser})
                     }
                     if (!match){
                         res.send('Invalid password')
@@ -110,7 +110,7 @@ app.post('/createpost', (req,res)=> {
 })
 
 app.get('/getposts', (req,res)=>{
-    db.query("SELECT * FROM posts JOIN users ON posts.userId = idUser", (err,result)=>{
+    db.query("SELECT * FROM posts JOIN users ON posts.UserId = idUser", (err,result)=>{
         if(err) {
             res.send(err)
         }
